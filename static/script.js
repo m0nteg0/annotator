@@ -9,10 +9,15 @@ let selected = -1;
 let dragOffsetX = 0, dragOffsetY = 0;
 let startBox = null;
 let resizeHandle = null;
-const handleSize = 6;
+const handleSize = 6;      // visible corner square
+const handleHitSize = 12;  // larger area for easier grabbing
 
 function pointInBox(x, y, b){
-  return x >= b.x && y >= b.y && x <= b.x + b.w && y <= b.y + b.h;
+  const x1 = Math.min(b.x, b.x + b.w);
+  const y1 = Math.min(b.y, b.y + b.h);
+  const x2 = Math.max(b.x, b.x + b.w);
+  const y2 = Math.max(b.y, b.y + b.h);
+  return x >= x1 && y >= y1 && x <= x2 && y <= y2;
 }
 
 function handleAt(x, y, b){
@@ -24,10 +29,23 @@ function handleAt(x, y, b){
   };
   for(let h in handles){
     const [hx, hy] = handles[h];
-    if(Math.abs(x - hx) <= handleSize && Math.abs(y - hy) <= handleSize)
+    if(Math.abs(x - hx) <= handleHitSize/2 && Math.abs(y - hy) <= handleHitSize/2)
       return h;
   }
   return null;
+}
+
+function cursorForHandle(h){
+  switch(h){
+    case 'nw':
+    case 'se':
+      return 'nwse-resize';
+    case 'ne':
+    case 'sw':
+      return 'nesw-resize';
+    default:
+      return 'default';
+  }
 }
 
 function fetchImages(){
@@ -120,15 +138,18 @@ window.onload = () => {
         dragOffsetX = startX;
         dragOffsetY = startY;
         resizeHandle = handle;
+        canvas.style.cursor = cursorForHandle(handle);
       }else{
         action = 'move';
         dragOffsetX = startX - boxes[selected].x;
         dragOffsetY = startY - boxes[selected].y;
+        canvas.style.cursor = 'move';
       }
       isDragging = true;
     }else{
       action = 'draw';
       isDragging = true;
+      canvas.style.cursor = 'crosshair';
       boxes.push({x:startX, y:startY, w:0, h:0});
       selected = boxes.length - 1;
     }
@@ -136,45 +157,66 @@ window.onload = () => {
   };
 
   canvas.onmousemove = (e) => {
-    if(!isDragging) return;
-    const box = boxes[selected];
-    if(action === 'draw'){
-      box.w = e.offsetX - startX;
-      box.h = e.offsetY - startY;
-    }else if(action === 'move'){
-      box.x = e.offsetX - dragOffsetX;
-      box.y = e.offsetY - dragOffsetY;
-    }else if(action === 'resize'){
-      switch(resizeHandle){
-        case 'nw':
-          box.x = e.offsetX;
-          box.y = e.offsetY;
-          box.w = startBox.w + (startBox.x - e.offsetX);
-          box.h = startBox.h + (startBox.y - e.offsetY);
-          break;
-        case 'ne':
-          box.y = e.offsetY;
-          box.w = e.offsetX - startBox.x;
-          box.h = startBox.h + (startBox.y - e.offsetY);
-          break;
-        case 'sw':
-          box.x = e.offsetX;
-          box.w = startBox.w + (startBox.x - e.offsetX);
-          box.h = e.offsetY - startBox.y;
-          break;
-        case 'se':
-          box.w = e.offsetX - startBox.x;
-          box.h = e.offsetY - startBox.y;
-          break;
+    if(isDragging){
+      const box = boxes[selected];
+      if(action === 'draw'){
+        box.w = e.offsetX - startX;
+        box.h = e.offsetY - startY;
+      }else if(action === 'move'){
+        box.x = e.offsetX - dragOffsetX;
+        box.y = e.offsetY - dragOffsetY;
+      }else if(action === 'resize'){
+        switch(resizeHandle){
+          case 'nw':
+            box.x = e.offsetX;
+            box.y = e.offsetY;
+            box.w = startBox.w + (startBox.x - e.offsetX);
+            box.h = startBox.h + (startBox.y - e.offsetY);
+            break;
+          case 'ne':
+            box.y = e.offsetY;
+            box.w = e.offsetX - startBox.x;
+            box.h = startBox.h + (startBox.y - e.offsetY);
+            break;
+          case 'sw':
+            box.x = e.offsetX;
+            box.w = startBox.w + (startBox.x - e.offsetX);
+            box.h = e.offsetY - startBox.y;
+            break;
+          case 'se':
+            box.w = e.offsetX - startBox.x;
+            box.h = e.offsetY - startBox.y;
+            break;
+        }
       }
+      draw();
+    }else{
+      let cur = 'crosshair';
+      for(let i = boxes.length - 1; i >= 0; i--){
+        const handle = handleAt(e.offsetX, e.offsetY, boxes[i]);
+        if(handle){
+          cur = cursorForHandle(handle);
+          break;
+        }
+        if(pointInBox(e.offsetX, e.offsetY, boxes[i])){
+          cur = 'move';
+          break;
+        }
+      }
+      canvas.style.cursor = cur;
     }
-    draw();
   };
 
   canvas.onmouseup = () => {
+    if((action === 'draw' || action === 'resize') && boxes[selected]){
+      const b = boxes[selected];
+      if(b.w < 0){ b.x += b.w; b.w = Math.abs(b.w); }
+      if(b.h < 0){ b.y += b.h; b.h = Math.abs(b.h); }
+    }
     isDragging = false;
     action = null;
     startBox = null;
+    canvas.style.cursor = 'crosshair';
   };
 
   window.addEventListener('keydown', (e) => {
