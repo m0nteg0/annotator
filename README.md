@@ -1,6 +1,6 @@
 # Annotator
 
-Simple web application for drawing bounding boxes on images.
+Simple web application for drawing and editing bounding boxes on images.
 
 ## Setup
 
@@ -14,5 +14,7 @@ Place images you want to annotate in `static/images` and then run:
 python app.py
 ```
 
-Open `http://localhost:5000/` in your browser to start annotating. Bounding
-boxes are saved as JSON in the `annotations` folder.
+Open `http://localhost:5000/` in your browser to start annotating. Use the
+mouse to create, select and resize boxes. Press the <kbd>Delete</kbd> key to
+remove a selected box. Bounding boxes are saved as JSON in the `annotations`
+folder.
